@@ -1,3 +1,5 @@
+#define PY_SSIZE_T_CLEAN
+#include <Python.h>
 #include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
@@ -40,7 +42,7 @@ void free_vector(vector *v);
 void free_cord(cord *c);
 void free_cords_array(cord **arr, int k);
 
-vector *fillDataPoint(){
+vector *fillDataPoint(PyObject *pointLst){
     vector *head_vec, *curr_vec;
     cord *head_cord, *curr_cord;
     double n;
@@ -53,25 +55,33 @@ vector *fillDataPoint(){
     head_vec = malloc(sizeof(vector));
     curr_vec = head_vec;
     curr_vec->next = NULL;
-    while (scanf("%lf%c", &n, &c) == 2)
-    {
 
-        if (c == '\n')
-        {
-            curr_cord->value = n;
-            curr_vec->cords = head_cord;
-            curr_vec->next = malloc(sizeof(vector));
-            curr_vec = curr_vec->next;
-            curr_vec->next = NULL;
-            head_cord = malloc(sizeof(cord));
-            curr_cord = head_cord;
+    int n = PyObject_Length(pointLst);
+    if (n < 0) {
+        return NULL;
+    }
+
+    int i;
+    int j;
+    PyObject *vec;
+    PyObject *cor;
+    for (i = 0; i < n; i++) {
+        vec = PyList_GetItem(lst, i);
+        for (j = 0; j < PyObject_Length(vec) - 1; j++) {
+            cor = PyList_GetItem(vec, j);
+            curr_cord->value = PyFloat_AsDouble(cor);
+            curr_cord->next = malloc(sizeof(cord));
+            curr_cord = curr_cord->next;
             curr_cord->next = NULL;
-            continue;
         }
-
-        curr_cord->value = n;
-        curr_cord->next = malloc(sizeof(cord));
-        curr_cord = curr_cord->next;
+        cor = PyList_GetItem(vec, j);
+        curr_cord->value = PyFloat_AsDouble(cor);
+        curr_vec->cords = head_cord;
+        curr_vec->next = malloc(sizeof(vector));
+        curr_vec = curr_vec->next;
+        curr_vec->next = NULL;
+        head_cord = malloc(sizeof(cord));
+        curr_cord = head_cord;
         curr_cord->next = NULL;
     }
 
@@ -369,6 +379,67 @@ void free_cord(cord *c) {
         free(tmp);
     }
 }
+
+static *PyObject kmeans(int k, int maxOfIter, double epsilon, vector *pointsVector) {
+    cord **updated_clusters;
+    cord **clusters = initializeKCenter(k, pointsVector);
+
+    while (maxOfIter > 0) {
+        updated_clusters = create_updated_cluster(clusters, k, pointsVector);
+        if (check_epsilon_value(clusters, updated_clusters, k)) {
+            free_cords_array(clusters, k);
+            clusters = updated_clusters;
+            break;
+        }
+
+        free_cords_array(clusters, k);
+        clusters = updated_clusters;
+        maxOfIter -= 1;
+    }
+
+    return parseClusters(clusters,k);
+}
+
+static PyObject *parseClusters(cord **clusters, int k){
+    PyObject* parsedArr = Pylist_New(k);
+    Pyobject* parsedInner;
+    PyObject* python_double;
+    cord *cor;
+    int cordsLen = num_of_cords_in_cord(clusters[0]);
+    int i;
+    int j;
+
+    for (i = 0; i < k; i++) {
+        parsedInner = Pylist_New(cordsLen);
+        cor = clusters[i];
+        for (j = 0; j < cordsLen; j++) {
+            python_double = Py_BuildValue("d", cor->vale)
+            PyList_SetItem(parsed_inner, j, python_double);
+            cor = cor->next;
+        }
+
+        PyList_SetItem(parsedArr, i, parsedInner);
+    }
+
+    return parsedArr; 
+}
+
+static PyObject *fit(PyObject *self, PyObject *args) {
+    PyObject *pointLst;
+    int numberOfk;
+    int maxIter;
+    double epsilon;
+    vector *pointsVector;
+
+
+    if (!PyArg_ParseTuple(args, “iidO”,&numberOfk,&maxIter,&epsilon,&pointLst)) {
+        return NULL;
+    }
+
+    pointsVector = fillDataPoint(pointLst);
+    return kmeans(numberOfk,maxIter,epsilon,pointsVector);
+}
+
 
 int main(int argc, char *argv[]){
     vector *pointsVector;
