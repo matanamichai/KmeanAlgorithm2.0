@@ -1,5 +1,3 @@
-#define PY_SSIZE_T_CLEAN
-#include <Python.h>
 #include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
@@ -42,11 +40,11 @@ void free_vector(vector *v);
 void free_cord(cord *c);
 void free_cords_array(cord **arr, int k);
 
-static PyObject *parseClusters(cord **clusters, int k);
-
-vector *fillDataPoint(PyObject *pointLst){
+vector *fillDataPoint(){
     vector *head_vec, *curr_vec;
     cord *head_cord, *curr_cord;
+    double n;
+    char c;
 
     head_cord = malloc(sizeof(cord));
     curr_cord = head_cord;
@@ -55,33 +53,25 @@ vector *fillDataPoint(PyObject *pointLst){
     head_vec = malloc(sizeof(vector));
     curr_vec = head_vec;
     curr_vec->next = NULL;
+    while (scanf("%lf%c", &n, &c) == 2)
+    {
 
-    int n = PyObject_Length(pointLst);
-    if (n < 0) {
-        return NULL;
-    }
-
-    int j;
-    PyObject *vec;
-    PyObject *cor;
-    for (int i = 0; i < n; i++) {
-        vec = PyList_GetItem(pointLst, i);
-        for (j = 0; j < PyObject_Length(vec) - 1; j++) {
-            cor = PyList_GetItem(vec, j);
-            curr_cord->value = PyFloat_AsDouble(cor);
-            curr_cord->next = malloc(sizeof(cord));
-            curr_cord = curr_cord->next;
+        if (c == '\n')
+        {
+            curr_cord->value = n;
+            curr_vec->cords = head_cord;
+            curr_vec->next = malloc(sizeof(vector));
+            curr_vec = curr_vec->next;
+            curr_vec->next = NULL;
+            head_cord = malloc(sizeof(cord));
+            curr_cord = head_cord;
             curr_cord->next = NULL;
+            continue;
         }
 
-        cor = PyList_GetItem(vec, j);
-        curr_cord->value = PyFloat_AsDouble(cor);
-        curr_vec->cords = head_cord;
-        curr_vec->next = malloc(sizeof(vector));
-        curr_vec = curr_vec->next;
-        curr_vec->next = NULL;
-        head_cord = malloc(sizeof(cord));
-        curr_cord = head_cord;
+        curr_cord->value = n;
+        curr_cord->next = malloc(sizeof(cord));
+        curr_cord = curr_cord->next;
         curr_cord->next = NULL;
     }
 
@@ -106,6 +96,42 @@ void printCord(cord *c) {
     printf("%.4f\n", c->value);
 }
 
+int validateIter(char *iter) {
+    int intIter;
+    
+    if (isNaturalNumber(iter) != 0) {
+        printf("Invalid maximum iteration!\n");
+        return 1;    
+    }
+
+    intIter = atoi(iter);
+    if (intIter >= MAX_ITER || intIter <= 1) {        
+        printf("Invalid maximum iteration!\n");
+        return 2;
+    }
+
+    return 0;
+}
+
+int validateK(char *k, vector *pointsVector) {
+    int points;
+    int intK;
+    
+    if (isNaturalNumber(k) != 0) {
+        printf("Invalid number of clusters!\n");
+        return 1;
+    }
+
+    points = countPointsInVector(pointsVector);
+    intK = atoi(k);
+    if (intK >= points || intK <= 1) {
+        printf("Invalid number of clusters!\n");
+        return 2;
+    }
+
+    return 0;
+}
+
 int countPointsInVector(vector *v) {
     int counter = 0;
     while (v->next != NULL) {
@@ -115,6 +141,41 @@ int countPointsInVector(vector *v) {
 
     return counter;
 }
+
+/* returns 0 if it is a natural number, and 1 otherwise */ 
+int isNaturalNumber(char *c) {
+    /* in case the first char is . */
+    if (*c == '.') {
+        return 1;
+    }
+    
+    while (*c != '\0') {
+        if (*c == '.') {
+            return all_zeroes(++c); 
+        }
+
+        if (isdigit(*c) == 0) {
+            return 1;    
+        }
+
+        c++;
+    }
+
+    return 0;
+}
+
+int all_zeroes(char *c) {
+    while (*c != '\0') {
+        if (*c != '0') {
+            return 1;
+        }
+
+        c++;
+    }
+
+    return 0; 
+}
+
 
 cord **initializeKCenter(int k, vector *points_vector) {
     vector *points_vector_vector;
@@ -211,7 +272,7 @@ cord **create_updated_cluster(cord **clusters, int k, vector *points_vector) {
     cord **updated_clusters;
     cord *head_cord, *curr_cord;
     int *num_of_cords_in_cluster;
-    int i, j, min_index = -1, l = num_of_cords_in_cord(points_vector->cords);
+    int i, j, min_index, l = num_of_cords_in_cord(points_vector->cords);
     double min_distance, current_distance;
 
     updated_clusters = malloc(k * sizeof(cord*));
@@ -309,10 +370,37 @@ void free_cord(cord *c) {
     }
 }
 
-static PyObject *kmeans(int k, int maxOfIter, double epsilon, vector *pointsVector) {
+int main(int argc, char *argv[]){
+    vector *pointsVector;
+    cord **clusters;
     cord **updated_clusters;
-    cord **clusters = initializeKCenter(k, pointsVector);
+    int maxOfIter;
+    int valid;
+    int k;
 
+    if (argc > 2){
+        valid = validateIter(argv[2]);
+        if (valid != 0) {
+            return 1;
+        }
+
+        maxOfIter = atoi(argv[2]);
+    }
+    else{
+        maxOfIter = 200;
+    }
+    
+    pointsVector = fillDataPoint();
+    valid = validateK(argv[1], pointsVector);
+    if (valid != 0) {
+        free_vector(pointsVector);
+        return 1;
+    }
+
+    k = atoi(argv[1]);
+
+    clusters = initializeKCenter(k, pointsVector);
+    
     while (maxOfIter > 0) {
         updated_clusters = create_updated_cluster(clusters, k, pointsVector);
         if (check_epsilon_value(clusters, updated_clusters, k)) {
@@ -326,74 +414,10 @@ static PyObject *kmeans(int k, int maxOfIter, double epsilon, vector *pointsVect
         maxOfIter -= 1;
     }
 
-    return parseClusters(clusters,k);
-}
+    print_cords_array(clusters, k);
 
-static PyObject *parseClusters(cord **clusters, int k){
-    PyObject* parsedArr = PyList_New(k);
-    PyObject* parsedInner;
-    PyObject* python_double;
-    cord *cor;
-    int cordsLen = num_of_cords_in_cord(clusters[0]);
-    int i;
-    int j;
+    free_vector(pointsVector);
+    free_cords_array(clusters, k);
 
-    for (i = 0; i < k; i++) {
-        parsedInner = PyList_New(cordsLen);
-        cor = clusters[i];
-        for (j = 0; j < cordsLen; j++) {
-            python_double = Py_BuildValue("d", cor->value);
-            PyList_SetItem(parsedInner, j, python_double);
-            cor = cor->next;
-        }
-
-        PyList_SetItem(parsedArr, i, parsedInner);
-    }
-
-    return parsedArr; 
-}
-
-static PyObject *fit(PyObject *self, PyObject *args) {
-    PyObject *pointLst;
-    int numberOfk;
-    int maxIter;
-    double epsilon;
-    vector *pointsVector;
-
-
-    if (!PyArg_ParseTuple(args, "iidO", &numberOfk, &maxIter, &epsilon, &pointLst)) {
-        return NULL;
-    }
-
-    pointsVector = fillDataPoint(pointLst);
-    return kmeans(numberOfk,maxIter,epsilon,pointsVector);
-}
-
-static PyMethodDef mykmeansspMethods[] = {
-    {"fit",                   
-      (PyCFunction) fit, 
-      METH_VARARGS,           /* flags indicating parameters
-accepted for this function */
-      PyDoc_STR("A kmeans implemention written in C")}, /*  The docstring for the function */
-    {NULL, NULL, 0, NULL}     /* The last entry must be all NULL as shown to act as a
-                                 sentinel. Python looks for this entry to know that all
-                                 of the functions for the module have been defined. */
-};
-
-static struct PyModuleDef mykmeansspModule = {
-    PyModuleDef_HEAD_INIT,
-    "mykmeanssp", /* name of module */
-    NULL, /* module documentation, may be NULL */
-    -1,  /* size of per-interpreter state of the module, or -1 if the module keeps state in global variables. */
-    mykmeansspMethods /* the PyMethodDef array from before containing the methods of the extension */
-};
-
-PyMODINIT_FUNC PyInit_mykmeanssp(void)
-{
-    PyObject *m;
-    m = PyModule_Create(&mykmeansspModule);
-    if (!m) {
-        return NULL;
-    }
-    return m;
+    return 0;
 }
