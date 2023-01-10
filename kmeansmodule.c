@@ -8,7 +8,6 @@
 
 #define  _POSIX_C_SOURCE 200809L
 #define MAX_ITER 1000
-#define EPSILON 0.001
 
 typedef struct cord
 {
@@ -31,7 +30,7 @@ vector *fillDataPoint();
 cord **initializeKCenter(int k, vector *points_vector);
 void normalize_updated_cluster(cord **updated_clusters, int *num_of_cords_in_cluster,int k);
 void add_point_to_cluster(cord *points_vector_cords, cord *cluster_cord, int l);
-int check_epsilon_value(cord **clusters, cord **updated_clusters, int k);
+int check_epsilon_value(cord **clusters, cord **updated_clusters, int k, double epsilon);
 
 int validateIter(char *iter);
 int isNaturalNumber(char *c);
@@ -256,13 +255,13 @@ cord **create_updated_cluster(cord **clusters, int k, vector *points_vector) {
 }
 
 /*returns 0 if we should do another iteration according to the epsilon value*/
-int check_epsilon_value(cord **clusters, cord **updated_clusters, int k) {
+int check_epsilon_value(cord **clusters, cord **updated_clusters, int k, double epsilon) {
     int i;
     double distance;
 
     for (i = 0; i < k; i++) {
         distance = calc_distance(clusters[i], updated_clusters[i]);
-        if (distance >= EPSILON) {
+        if (distance >= epsilon) {
             return 0;
         }
     }
@@ -315,7 +314,7 @@ static PyObject *kmeans(int k, int maxOfIter, double epsilon, vector *pointsVect
 
     while (maxOfIter > 0) {
         updated_clusters = create_updated_cluster(clusters, k, pointsVector);
-        if (check_epsilon_value(clusters, updated_clusters, k)) {
+        if (check_epsilon_value(clusters, updated_clusters, k, epsilon)) {
             free_cords_array(clusters, k);
             clusters = updated_clusters;
             break;
