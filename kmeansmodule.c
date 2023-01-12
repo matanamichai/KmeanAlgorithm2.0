@@ -59,11 +59,11 @@ vector *fillDataPoint(PyObject *pointLst){
     if (n < 0) {
         return NULL;
     }
-
+    int i;
     int j;
     PyObject *vec;
     PyObject *cor;
-    for (int i = 0; i < n; i++) {
+    for (i = 0; i < n; i++) {
         vec = PyList_GetItem(pointLst, i);
         for (j = 0; j < PyObject_Length(vec) - 1; j++) {
             cor = PyList_GetItem(vec, j);

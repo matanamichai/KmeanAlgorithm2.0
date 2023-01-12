@@ -11,7 +11,7 @@ def dprint(string):
 
 def print_centroids(centroids_arr):
     for centroid in centroids_arr:
-        print(",".join(f"{round(cord, 4)}" for cord in centroid))
+        print(",".join(("%.4f"%cord)  for cord in centroid))
 
 def Kmeans(k,iterations,eps,input_file_name_1,input_file_name_2):
 
@@ -19,7 +19,37 @@ def Kmeans(k,iterations,eps,input_file_name_1,input_file_name_2):
     second_df = pd.read_csv(input_file_name_2, index_col=0, header=None)
     merged_df = pd.merge(first_df, second_df, left_index=True, right_index=True) 
     merged_df_initial_size = len(merged_df.index)
-    validate_parameters(k,iterations,merged_df_initial_size)
+    try:
+        is_natural = int(float(k)) == float(k)
+    except ValueError:
+        print("Invalid number of clusters!")
+        return
+
+    if not is_natural:
+        print("Invalid number of clusters!")
+        return
+
+    # in case k given with trailing zeroes
+    k = float(k)
+    if k <= 1 or k >= merged_df_initial_size:
+        print("Invalid number of clusters!")
+        return
+
+    try:
+        is_natural = int(float(iterations)) == float(iterations)
+    except ValueError:
+        print("Invalid maximum iteration!")
+        return
+    if not is_natural:
+        print("Invalid maximum iteration!")
+        return
+
+    iterations = float(iterations)
+    if iterations <= 1 or iterations >= 1000:
+        print("Invalid maximum iteration!")
+        return
+    k = int(k)
+    iterations = int(iterations)
 
     np.random.seed(0)
 
@@ -60,39 +90,15 @@ def Kmeans(k,iterations,eps,input_file_name_1,input_file_name_2):
     centroids_arr = kmeans.fit(k, 200, eps, arr)
     print_centroids(centroids_arr)
 
-def validate_parameters(k,iterations,number_of_point):
-    try:
-        is_natural = int(float(k)) == float(k)
-    except ValueError:
-        raise ValueError("Invalid number of clusters!")
-
-    if not is_natural:
-        raise ValueError("Invalid number of clusters!")
-
-    # in case k given with trailing zeroes
-    k = float(k)
-    if k <= 1 or k >= number_of_point:
-        raise ValueError("Invalid number of clusters!")
-
-    try:
-        is_natural = int(float(iterations)) == float(iterations)
-    except ValueError:
-        raise ValueError("Invalid number of iterations!")
-
-    if not is_natural:
-        raise ValueError("Invalid number of iterations!")
-
-    iterations = float(iterations)
-    if iterations <= 1 or iterations >= 1000:
-        raise ValueError("Invalid number of iterations!")
 
 
 def main():
     if(len(sys.argv) == 6):
-        Kmeans(int(sys.argv[1]),int(sys.argv[2]),float(sys.argv[3]),sys.argv[4],sys.argv[5])
+        Kmeans(sys.argv[1],sys.argv[2],float(sys.argv[3]),sys.argv[4],sys.argv[5])
     elif(len(sys.argv) == 5):
-        Kmeans(int(sys.argv[1]),300,float(sys.argv[2]),sys.argv[3],sys.argv[4])
-
+        Kmeans(sys.argv[1],300,float(sys.argv[2]),sys.argv[3],sys.argv[4])
+    else:
+        print("An Error Has Occurred")
 
 if __name__ == "__main__":
     main()
